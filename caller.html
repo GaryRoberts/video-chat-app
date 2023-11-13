@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Video Call App</title>
+  <!-- Add Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <!-- Add Material Design Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/mdb-ui-kit/css/mdb.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #333;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .panel {
+      border: none;
+      box-shadow: none;
+    }
+
+    #localVideo, #remoteVideo {
+      width: 100%;
+      height: 100%;
+    }
+
+    label, p {
+      margin: 10px;
+    }
+
+    button {
+      background-color: #444;
+      color: #fff;
+      border: none;
+      padding: 10px;
+      margin: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-5">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="panel panel-primary">
+          <div class="panel-heading">
+            <h3 class="panel-title">Local Video</h3>
+          </div>
+          <div class="panel-body">
+            <video id="localVideo" autoplay muted></video>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="panel panel-primary">
+          <div class="panel-heading">
+            <h3 class="panel-title">Remote Video</h3>
+          </div>
+          <div class="panel-body">
+            <video id="remoteVideo" autoplay></video>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <label for="peerIdInput">Enter Peer ID:</label>
+  <input type="text" id="peerIdInput">
+  <button onclick="connectToPeer()">Connect</button>
+
+  <div>
+    <p>Your Peer ID: <span id="myPeerId"></span></p>
+    <p>Peer Camera Status: <span id="peerCameraStatus"></span></p>
+    <p>Peer Mic Status: <span id="peerMicStatus"></span></p>
+  </div>
+
+  <!-- Add icons to toggle buttons -->
+  <button id="toggleMicButton" onclick="toggleMic()" class="btn btn-primary"><i class="fas fa-microphone"></i></button>
+  <button id="toggleCameraButton" onclick="toggleCamera()" class="btn btn-primary"><i class="fas fa-video"></i></button>
+
+  <!-- Add Material Design Bootstrap JS and Popper.js -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mdb-ui-kit/js/mdb.min.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.7/dist/umd/popper.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+  <script>
+    const peer = new Peer();
+
+    let localStream;
+    let remoteStream;
+
+    peer.on('open', id => {
+      console.log('My peer ID is: ' + id);
+      document.getElementById('myPeerId').innerText = id;
+
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          localStream = stream;
+          document.getElementById('localVideo').srcObject = localStream;
+
+          peer.on('call', call => {
+            call.answer(localStream);
+            call.on('stream', remoteStream => {
+              document.getElementById('remoteVideo').srcObject = remoteStream;
+              updatePeerStatusIcons(call.peerConnection);
+            });
+          });
+        })
+        .catch(error => {
+          console.error('Error accessing media devices:', error);
+        });
+    });
+
+    // Connect to a peer
+    const connectToPeer = () => {
+      const remotePeerId = document.getElementById('peerIdInput').value;
+      const call = peer.call(remotePeerId, localStream);
+
+      call.on('stream', remoteStream => {
+        document.getElementById('remoteVideo').srcObject = remoteStream;
+        updatePeerStatusIcons(call.peerConnection);
+      });
+    };
+
+    // Toggle microphone
+    const toggleMic = () => {
+      const audioTracks = localStream.getAudioTracks();
+      audioTracks.forEach(track => {
+        track.enabled = !track.enabled;
+      });
+
+      // Update button icon based on the status
+      const button = document.getElementById('toggleMicButton');
+      button.innerHTML = audioTracks[0].enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+    };
+
+    // Toggle camera
+    const toggleCamera = () => {
+      const videoTracks = localStream.getVideoTracks();
+      videoTracks.forEach(track => {
+        track.enabled = !track.enabled;
+      });
+
+      // Update button icon based on the status
+      const button = document.getElementById('toggleCameraButton');
+      button.innerHTML = videoTracks[0].enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+    };
+
+    // Update peer status icons
+    const updatePeerStatusIcons = (peerConnection) => {
+      const peerMicStatus = peerConnection.getSenders().find(sender => sender.track.kind === 'audio').track.enabled;
+      const peerCameraStatus = peerConnection.getSenders().find(sender => sender.track.kind === 'video').track.enabled;
+
+      document.getElementById('peerMicStatus').innerText = peerMicStatus ? 'Mic On' : 'Mic Off';
+      document.getElementById('peerCameraStatus').innerText = peerCameraStatus ? 'Camera On' : 'Camera Off';
+    };
+  </script>
+</body>
+</html>
